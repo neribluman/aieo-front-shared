@@ -1,17 +1,12 @@
 'use client';
 
-import { Card, Title, BarChart, DonutChart, AreaChart, Grid, Text, Metric, Flex, TabGroup, TabList, Tab, TabPanels, TabPanel, Table, TableHead, TableHeaderCell, TableBody, TableRow, TableCell, Badge, List, ListItem } from '@tremor/react';
+import { Card, Title, AreaChart, Grid, Text, Metric, Flex, TabGroup, TabList, Tab, TabPanels, TabPanel, Table, TableHead, TableHeaderCell, TableBody, TableRow, TableCell, Badge, List, ListItem } from '@tremor/react';
+import type { CustomTooltipProps } from '@tremor/react';
 import WorldMap from "react-svg-worldmap";
 import { CountryContext } from "react-svg-worldmap";
 
 // First, let's define a type for the position
 type Position = number | '-';
-
-interface Platform {
-  name: string;
-  position: Position;
-  cited: boolean;
-}
 
 interface RegionalData {
   region: string;
@@ -34,6 +29,15 @@ interface ICPData {
 interface MapData {
   country: string;
   value: number;
+}
+
+interface MonthlyScore {
+  month: string;
+  ranking: number;
+  citations: number;
+  competition: number;
+  queries: number;
+  totalCitations: number;
 }
 
 export default function VisibilityDashboard() {
@@ -518,6 +522,35 @@ export default function VisibilityDashboard() {
     { country: "eg", value: 12 }
   ];
 
+  // Fix the any type in the customTooltip
+  const customTooltip = ({ payload, active }: CustomTooltipProps) => {
+    if (!active || !payload?.length) return null;
+
+    const monthlyData = payload[0].payload as MonthlyScore;
+
+    return (
+      <div className="p-2 bg-white/90 border border-gray-200 rounded-lg shadow-lg">
+        <div className="text-sm font-medium">
+          {monthlyData.month}
+        </div>
+        {payload.map((category) => (
+          <div key={category.dataKey} className="flex items-center gap-2">
+            <div 
+              className="w-2 h-2 rounded-full" 
+              style={{ backgroundColor: category.color }}
+            />
+            <span className="text-sm capitalize">
+              {category.dataKey as string}:
+            </span>
+            <span className="text-sm font-medium">
+              {category.value}%
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="p-8 bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen">
       <div className="max-w-7xl mx-auto">
@@ -566,21 +599,7 @@ export default function VisibilityDashboard() {
                         showYAxis={true}
                         minValue={0}
                         maxValue={100}
-                        customTooltip={({ payload }) => {
-                          if (!payload?.[0]) return null;
-                          return (
-                            <div className="p-2 bg-white/90 border border-gray-200 rounded-lg shadow-lg">
-                              <div className="text-sm font-medium">{payload[0].payload.month}</div>
-                              {payload.map((category: any) => (
-                                <div key={category.dataKey} className="flex items-center gap-2">
-                                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: category.color }}></div>
-                                  <span className="text-sm capitalize">{category.dataKey}:</span>
-                                  <span className="text-sm font-medium">{category.value}%</span>
-                                </div>
-                              ))}
-                            </div>
-                          );
-                        }}
+                        customTooltip={customTooltip}
                       />
                       
                       {/* Add metric cards below the chart */}
