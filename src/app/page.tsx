@@ -1,10 +1,9 @@
 'use client';
 
-import { Card, Title, AreaChart, Grid, Text, Metric, Flex, TabGroup, TabList, Tab, TabPanels, TabPanel, Table, TableHead, TableHeaderCell, TableBody, TableRow, TableCell, Badge, List, ListItem } from '@tremor/react';
-import type { CustomTooltipProps } from '@tremor/react';
+import { Card, Title, AreaChart, Grid, Text, Metric, Flex, TabGroup, TabList, Tab, TabPanels, TabPanel, Badge } from '@tremor/react';
 import WorldMap from "react-svg-worldmap";
 import { CountryContext } from "react-svg-worldmap";
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { createPortal } from 'react-dom';
 
@@ -33,14 +32,6 @@ interface ICPData {
 interface MapData {
   country: string;
   value: number;
-}
-
-interface MonthlyScore {
-  month: string;
-  percentageRanked: number;
-  avgRankingPosition: number;
-  citationAppearance: number;
-  avgCitationPosition: number;
 }
 
 interface PlatformRanking {
@@ -575,35 +566,6 @@ export default function VisibilityDashboard() {
     { country: "ng", value: 8 },
     { country: "eg", value: 12 }
   ];
-
-  // Fix the any type in the customTooltip
-  const customTooltip = ({ payload, active }: CustomTooltipProps) => {
-    if (!active || !payload?.length) return null;
-
-    const monthlyData = payload[0].payload as MonthlyScore;
-
-    return (
-      <div className="p-2 bg-white/90 border border-gray-200 rounded-lg shadow-lg">
-        <div className="text-sm font-medium">
-          {monthlyData.month}
-        </div>
-        {payload.map((category) => (
-          <div key={category.dataKey} className="flex items-center gap-2">
-            <div 
-              className="w-2 h-2 rounded-full" 
-              style={{ backgroundColor: category.color }}
-            />
-            <span className="text-sm capitalize">
-              {category.dataKey as string}:
-            </span>
-            <span className="text-sm font-medium">
-              {category.value}%
-            </span>
-          </div>
-        ))}
-      </div>
-    );
-  };
 
   const platforms = ['Perplexity', 'Claude', 'Gemini', 'SearchGPT', 'MetaAI'] as const;
 
