@@ -4,6 +4,9 @@ import { Card, Title, AreaChart, Grid, Text, Metric, Flex, TabGroup, TabList, Ta
 import type { CustomTooltipProps } from '@tremor/react';
 import WorldMap from "react-svg-worldmap";
 import { CountryContext } from "react-svg-worldmap";
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
+import { createPortal } from 'react-dom';
 
 // First, let's define a type for the position
 type Position = number | '-';
@@ -19,11 +22,12 @@ interface RegionalData {
 
 interface ICPData {
   profile: string;
-  score: number;
+  visibilityProbability: number;
+  recommendationProbability: number;
+  avgRanking: number;
+  citationAppearances: number;
+  overallScore: number;
   color: string;
-  characteristics: string[];
-  engagement: string;
-  conversionRate: string;
 }
 
 interface MapData {
@@ -33,11 +37,164 @@ interface MapData {
 
 interface MonthlyScore {
   month: string;
-  ranking: number;
-  citations: number;
-  competition: number;
-  queries: number;
-  totalCitations: number;
+  percentageRanked: number;
+  avgRankingPosition: number;
+  citationAppearance: number;
+  avgCitationPosition: number;
+}
+
+interface PlatformRanking {
+  name: string;
+  position: Position;
+  cited: boolean;
+}
+
+interface QueryPerformance {
+  id: string;
+  query: string;
+  category: string;
+  impact: "High" | "Medium" | "Low";
+  userIntent: string;
+  platforms: PlatformRanking[];
+  averagePosition: number;
+}
+
+interface DetailedRanking {
+  position: number;
+  company: string;
+}
+
+// First, update the interface for citation data
+interface CompetitorData {
+  company: string;
+  percentageRanked: number;
+  avgRankingPosition: number;
+  citationAppearance: number;
+  avgCitationPosition: number;
+  overallScore: number;
+  trend: string;
+}
+
+function HoverCard({ query, platforms, isVisible, position }: { 
+  query: QueryPerformance; 
+  platforms: readonly string[];
+  isVisible: boolean;
+  position: { top: number; left: number; };
+}) {
+  const getPositionBadgeColor = (position: Position): string => {
+    if (position === '-') return "red";
+    if (position <= 2) return "green";
+    if (position <= 4) return "yellow";
+    return "orange";
+  };
+
+  const getDetailedRankings = (position: Position): DetailedRanking[] => {
+    const allCompanies = [
+      'Redgate', 'Ariga.io', 'Hasura', 'PlanetScale', 'Atlas',
+      'Alembic', 'TypeORM', 'DBmaestro', 'SchemaHero', 'Sequelize'
+    ];
+    
+    if (position === '-') return [];
+    
+    const rankings: DetailedRanking[] = [];
+    for (let i = Math.max(1, Number(position) - 2); i <= Number(position) + 2; i++) {
+      rankings.push({
+        position: i,
+        company: i === Number(position) ? 'Ariga.io' : allCompanies[Math.floor(Math.random() * allCompanies.length)]
+      });
+    }
+    return rankings;
+  };
+
+  if (!isVisible) return null;
+
+  return createPortal(
+    <div 
+      className="fixed bg-white rounded-lg border border-gray-200 shadow-2xl"
+      style={{ 
+        top: `${position.top}px`,
+        left: `${position.left}px`,
+        width: '800px',
+        zIndex: 50,
+        transform: 'translateY(-100%)',
+      }}
+    >
+      <div className="relative">
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-violet-500 rounded-t-lg"/>
+        <div className="p-6">
+          <div>
+            <Text className="font-medium text-xl mb-2">{query.query}</Text>
+            <div className="flex gap-2">
+              <Badge color="blue">{query.category}</Badge>
+              <Badge color={query.impact === 'High' ? 'green' : 
+                     query.impact === 'Medium' ? 'yellow' : 'orange'}>
+                {query.impact} Impact
+              </Badge>
+              <Badge color="violet">{query.userIntent}</Badge>
+              <Badge color="emerald">Avg Position: #{query.averagePosition}</Badge>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-5 gap-4 mt-6">
+            {platforms.map(platformName => {
+              const platformData = query.platforms.find(p => p.name === platformName) || 
+                { position: '-', cited: false };
+              const rankings = getDetailedRankings(platformData.position);
+              
+              return (
+                <div key={platformName} className="bg-gray-100 rounded-lg p-4">
+                  <div className="text-center mb-4">
+                    <Text className="font-medium text-lg">{platformName}</Text>
+                    <div className="flex justify-center items-center gap-2 mt-2">
+                      <Badge 
+                        color={getPositionBadgeColor(platformData.position)}
+                        size="lg"
+                      >
+                        {platformData.position === '-' ? 'Not Listed' : `#${platformData.position}`}
+                      </Badge>
+                      {platformData.cited && (
+                        <Badge color="green">Cited</Badge>
+                      )}
+                    </div>
+                  </div>
+
+                  {platformData.position !== '-' && (
+                    <div className="mt-4 space-y-2">
+                      <Text className="text-sm font-medium text-gray-700 mb-2">Ranking Context:</Text>
+                      {rankings.map((rank) => (
+                        <div 
+                          key={rank.position}
+                          className={`flex items-center justify-between p-2 rounded ${
+                            rank.company === 'Ariga.io' 
+                              ? 'bg-blue-50 border border-blue-200' 
+                              : 'bg-white border border-gray-100'
+                          }`}
+                        >
+                          <Text className="text-sm">#{rank.position}</Text>
+                          <Text className={`text-sm ${
+                            rank.company === 'Ariga.io' ? 'font-medium text-blue-600' : ''
+                          }`}>
+                            {rank.company}
+                          </Text>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {platformData.position === '-' && (
+                    <div className="mt-4 text-center text-gray-500 text-sm">
+                      Not currently ranked in this platform
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
 }
 
 export default function VisibilityDashboard() {
@@ -45,51 +202,45 @@ export default function VisibilityDashboard() {
   const monthlyScores = [
     { 
       month: 'May 2024',
-      ranking: 45,
-      citations: 35,
-      competition: 38,
-      queries: 156,
-      totalCitations: 78,
+      percentageRanked: 25,
+      avgRankingPosition: 4.2,
+      citationAppearance: 15,
+      avgCitationPosition: 8.5,
     },
     { 
       month: 'Jun 2024',
-      ranking: 52,
-      citations: 42,
-      competition: 45,
-      queries: 189,
-      totalCitations: 92,
+      percentageRanked: 28,
+      avgRankingPosition: 3.8,
+      citationAppearance: 18,
+      avgCitationPosition: 7.8,
     },
     { 
       month: 'Jul 2024',
-      ranking: 58,
-      citations: 48,
-      competition: 52,
-      queries: 145,
-      totalCitations: 67,
+      percentageRanked: 32,
+      avgRankingPosition: 3.5,
+      citationAppearance: 22,
+      avgCitationPosition: 6.5,
     },
     { 
       month: 'Aug 2024',
-      ranking: 65,
-      citations: 45,
-      competition: 68,
-      queries: 134,
-      totalCitations: 59,
+      percentageRanked: 35,
+      avgRankingPosition: 3.2,
+      citationAppearance: 28,
+      avgCitationPosition: 5.2,
     },
     { 
       month: 'Sep 2024',
-      ranking: 72,
-      citations: 38,
-      competition: 82,
-      queries: 223,
-      totalCitations: 115,
+      percentageRanked: 42,
+      avgRankingPosition: 2.8,
+      citationAppearance: 35,
+      avgCitationPosition: 4.5,
     },
     { 
       month: 'Oct 2024',
-      ranking: 78,
-      citations: 32,
-      competition: 88,
-      queries: 198,
-      totalCitations: 94,
+      percentageRanked: 45,
+      avgRankingPosition: 2.5,
+      citationAppearance: 38,
+      avgCitationPosition: 3.8,
     },
   ];
 
@@ -99,9 +250,9 @@ export default function VisibilityDashboard() {
       category: "Problem Recognition",
       query: "What challenges do teams face with manual database schema changes?",
       platforms: [
-        { name: "Perplexity", position: 2, cited: true },
-        { name: "Claude", position: 4, cited: true },
-        { name: "Gemini", position: '-', cited: false }
+        { name: "Perplexity", position: 2 as Position, cited: true },
+        { name: "Claude", position: 4 as Position, cited: true },
+        { name: "Gemini", position: '-' as Position, cited: false }
       ],
       impact: "High",
       userIntent: "Research"
@@ -153,201 +304,114 @@ export default function VisibilityDashboard() {
   ];
 
   // Citation leaderboard
-  const citationLeaderboard = [
-    { 
-      company: 'Redgate', 
-      citations: 876, 
-      trend: '+8%',
-      analysis: {
-        strengths: [
-          "SQL Server tooling specialist",
-          "Enterprise compliance focus",
-          "Comprehensive database lifecycle tools"
-        ],
-        citationContext: "Leader in SQL Server management",
-        marketShare: "16%",
-        recentUpdates: "Enhanced compliance automation features"
-      }
+  const competitorData: CompetitorData[] = [
+    {
+      company: 'Redgate',
+      percentageRanked: 48,
+      avgRankingPosition: 2.3,
+      citationAppearance: 42,
+      avgCitationPosition: 3.2,
+      overallScore: 88,
+      trend: '+15%'
     },
-    { 
-      company: 'Ariga.io', 
-      citations: 864, 
-      trend: '+32%',
-      analysis: {
-        strengths: [
-          "Schema-as-code innovation",
-          "Modern DevOps integration",
-          "Strong versioning capabilities"
-        ],
-        citationContext: "Fast-growing in DevOps-focused searches",
-        marketShare: "15%",
-        recentUpdates: "Launched new schema visualization tools"
-      }
+    {
+      company: 'Hasura',
+      percentageRanked: 45,
+      avgRankingPosition: 2.4,
+      citationAppearance: 40,
+      avgCitationPosition: 3.5,
+      overallScore: 85,
+      trend: '+28%'
     },
-    { 
-      company: 'Hasura', 
-      citations: 845, 
-      trend: '+25%',
-      analysis: {
-        strengths: [
-          "GraphQL API automation",
-          "Real-time subscription features",
-          "Instant API generation"
-        ],
-        citationContext: "Top in GraphQL database solutions",
-        marketShare: "14%",
-        recentUpdates: "New real-time collaboration features"
-      }
+    {
+      company: 'PlanetScale',
+      percentageRanked: 44,
+      avgRankingPosition: 2.6,
+      citationAppearance: 38,
+      avgCitationPosition: 3.7,
+      overallScore: 83,
+      trend: '+22%'
     },
-    { 
-      company: 'PlanetScale', 
-      citations: 789, 
-      trend: '+28%',
-      analysis: {
-        strengths: [
-          "Serverless database platform",
-          "Branch-based database workflow",
-          "MySQL compatibility"
-        ],
-        citationContext: "Rising star in serverless databases",
-        marketShare: "14%",
-        recentUpdates: "Launched new branching features"
-      }
+    {
+      company: 'Ariga.io',
+      percentageRanked: 42,
+      avgRankingPosition: 2.8,
+      citationAppearance: 35,
+      avgCitationPosition: 4.0,
+      overallScore: 80,
+      trend: '-8%'
     },
-    { 
-      company: 'Atlas', 
-      citations: 654, 
-      trend: '+20%',
-      analysis: {
-        strengths: [
-          "Modern schema management",
-          "Strong GraphQL integration",
-          "Developer-friendly workflow"
-        ],
-        citationContext: "Growing in modern stack adoption",
-        marketShare: "12%",
-        recentUpdates: "New GraphQL schema features"
-      }
+    {
+      company: 'Atlas',
+      percentageRanked: 40,
+      avgRankingPosition: 3.0,
+      citationAppearance: 33,
+      avgCitationPosition: 4.2,
+      overallScore: 78,
+      trend: '+18%'
     },
-    { 
-      company: 'Alembic', 
-      citations: 543, 
-      trend: '+10%',
-      analysis: {
-        strengths: [
-          "Python ecosystem favorite",
-          "SQLAlchemy integration",
-          "Lightweight migration tool"
-        ],
-        citationContext: "Most cited Python migration tool",
-        marketShare: "10%",
-        recentUpdates: "Enhanced SQLAlchemy support"
-      }
+    {
+      company: 'Alembic',
+      percentageRanked: 38,
+      avgRankingPosition: 3.2,
+      citationAppearance: 30,
+      avgCitationPosition: 4.5,
+      overallScore: 75,
+      trend: '-5%'
     },
-    { 
-      company: 'TypeORM', 
-      citations: 498, 
-      trend: '+15%',
-      analysis: {
-        strengths: [
-          "TypeScript-first ORM",
-          "Strong Node.js integration",
-          "Active community support"
-        ],
-        citationContext: "Popular in TypeScript projects",
-        marketShare: "9%",
-        recentUpdates: "Improved TypeScript 5.0 support"
-      }
+    {
+      company: 'TypeORM',
+      percentageRanked: 36,
+      avgRankingPosition: 3.4,
+      citationAppearance: 28,
+      avgCitationPosition: 4.8,
+      overallScore: 72,
+      trend: '+10%'
     },
-    { 
-      company: 'DBmaestro', 
-      citations: 456, 
-      trend: '+5%',
-      analysis: {
-        strengths: [
-          "Enterprise DevOps focus",
-          "Strong security features",
-          "Compliance automation"
-        ],
-        citationContext: "Referenced in enterprise DevOps",
-        marketShare: "8%",
-        recentUpdates: "New security compliance features"
-      }
+    {
+      company: 'DBmaestro',
+      percentageRanked: 34,
+      avgRankingPosition: 3.6,
+      citationAppearance: 25,
+      avgCitationPosition: 5.0,
+      overallScore: 70,
+      trend: '-3%'
     },
-    { 
-      company: 'SchemaHero', 
-      citations: 432, 
-      trend: '+18%',
-      analysis: {
-        strengths: [
-          "Kubernetes-native solution",
-          "GitOps workflow support",
-          "Cloud-native architecture"
-        ],
-        citationContext: "Growing in Kubernetes adoption",
-        marketShare: "8%",
-        recentUpdates: "Enhanced Kubernetes operator"
-      }
+    {
+      company: 'SchemaHero',
+      percentageRanked: 32,
+      avgRankingPosition: 3.8,
+      citationAppearance: 22,
+      avgCitationPosition: 5.2,
+      overallScore: 68,
+      trend: '+25%'
     },
-    { 
-      company: 'Sequelize', 
-      citations: 423, 
-      trend: '+6%',
-      analysis: {
-        strengths: [
-          "Mature Node.js ORM",
-          "Multi-dialect support",
-          "Large community"
-        ],
-        citationContext: "Established in Node.js ecosystem",
-        marketShare: "7%",
-        recentUpdates: "Added TypeScript enhancements"
-      }
+    {
+      company: 'Sequelize',
+      percentageRanked: 30,
+      avgRankingPosition: 4.0,
+      citationAppearance: 20,
+      avgCitationPosition: 5.5,
+      overallScore: 65,
+      trend: '+8%'
     },
-    { 
-      company: 'DataGrip', 
-      citations: 387, 
-      trend: '+8%',
-      analysis: {
-        strengths: [
-          "IDE integration",
-          "Multi-database support",
-          "Developer productivity"
-        ],
-        citationContext: "Popular IDE-based solution",
-        marketShare: "7%",
-        recentUpdates: "New database visualization features"
-      }
+    {
+      company: 'DataGrip',
+      percentageRanked: 28,
+      avgRankingPosition: 4.2,
+      citationAppearance: 18,
+      avgCitationPosition: 5.8,
+      overallScore: 62,
+      trend: '+12%'
     },
-    { 
-      company: 'DbUp', 
-      citations: 345, 
-      trend: '+4%',
-      analysis: {
-        strengths: [
-          ".NET ecosystem tool",
-          "Simple deployment model",
-          "SQL Server focus"
-        ],
-        citationContext: "Common in .NET projects",
-        marketShare: "6%",
-        recentUpdates: "Improved .NET Core support"
-      }
-    },
-    { 
-      company: 'Codebots', 
-      citations: 289, 
-      trend: '+15%',
-      analysis: {
-        strengths: [
-          "Low-code approach",
-          "Automated code generation",
-          "Visual modeling"
-        ],
-        citationContext: "Growing in low-code segment",
-        marketShare: "5%",
-        recentUpdates: "New visual modeling features"
-      }
+    {
+      company: 'DbUp',
+      percentageRanked: 25,
+      avgRankingPosition: 4.5,
+      citationAppearance: 15,
+      avgCitationPosition: 6.0,
+      overallScore: 60,
+      trend: '-2%'
     }
   ];
 
@@ -356,47 +420,49 @@ export default function VisibilityDashboard() {
     { 
       engine: 'Perplexity',
       visibility: 45,
-      mentions: 134,
-      sentiment: 52,
+      percentageRanked: 45,
+      avgRankingPosition: 2.5,
+      citationAppearance: 38,
+      avgCitationPosition: 3.8,
       color: 'indigo'
     },
     { 
       engine: 'SearchGPT',
       visibility: 32,
-      mentions: 89,
-      sentiment: 48,
+      percentageRanked: 35,
+      avgRankingPosition: 3.2,
+      citationAppearance: 28,
+      avgCitationPosition: 5.2,
       color: 'emerald'
     },
     { 
       engine: 'Gemini',
       visibility: 38,
-      mentions: 96,
-      sentiment: 44,
+      percentageRanked: 42,
+      avgRankingPosition: 2.8,
+      citationAppearance: 35,
+      avgCitationPosition: 4.5,
       color: 'violet'
     },
     { 
       engine: 'Claude',
       visibility: 36,
-      mentions: 98,
-      sentiment: 48,
+      percentageRanked: 38,
+      avgRankingPosition: 3.0,
+      citationAppearance: 32,
+      avgCitationPosition: 4.8,
       color: 'amber'
     },
     { 
       engine: 'MetaAI',
       visibility: 24,
-      mentions: 75,
-      sentiment: 36,
+      percentageRanked: 25,
+      avgRankingPosition: 4.2,
+      citationAppearance: 15,
+      avgCitationPosition: 8.5,
       color: 'rose'
     },
   ];
-
-  // Helper function to get badge color based on position
-  const getPositionBadgeColor = (position: Position): string => {
-    if (position === '-') return "red";
-    if (position <= 2) return "green";
-    if (position <= 4) return "yellow";
-    return "orange";
-  };
 
   const regionalData: RegionalData[] = [
     {
@@ -436,51 +502,39 @@ export default function VisibilityDashboard() {
   const icpData: ICPData[] = [
     {
       profile: 'Enterprise DevOps Teams',
-      score: 78,
-      color: 'blue',
-      characteristics: [
-        'Large-scale deployments',
-        'Multiple database types',
-        'Complex CI/CD pipelines'
-      ],
-      engagement: 'High',
-      conversionRate: '12%'
+      visibilityProbability: 78,
+      recommendationProbability: 82,
+      avgRanking: 2.4,
+      citationAppearances: 45,
+      overallScore: 85,
+      color: 'blue'
     },
     {
       profile: 'Cloud-Native Startups',
-      score: 65,
-      color: 'emerald',
-      characteristics: [
-        'Kubernetes-first',
-        'Rapid iteration cycles',
-        'Modern tech stack'
-      ],
-      engagement: 'Very High',
-      conversionRate: '18%'
+      visibilityProbability: 92,
+      recommendationProbability: 88,
+      avgRanking: 1.8,
+      citationAppearances: 52,
+      overallScore: 90,
+      color: 'emerald'
     },
     {
       profile: 'Financial Services',
-      score: 52,
-      color: 'violet',
-      characteristics: [
-        'Strict compliance needs',
-        'High security requirements',
-        'Legacy system integration'
-      ],
-      engagement: 'Medium',
-      conversionRate: '8%'
+      visibilityProbability: 65,
+      recommendationProbability: 70,
+      avgRanking: 3.2,
+      citationAppearances: 28,
+      overallScore: 68,
+      color: 'violet'
     },
     {
       profile: 'SaaS Providers',
-      score: 44,
-      color: 'amber',
-      characteristics: [
-        'Multi-tenant databases',
-        'Automated scaling needs',
-        'Continuous deployment'
-      ],
-      engagement: 'High',
-      conversionRate: '15%'
+      visibilityProbability: 85,
+      recommendationProbability: 75,
+      avgRanking: 2.6,
+      citationAppearances: 38,
+      overallScore: 78,
+      color: 'amber'
     }
   ];
 
@@ -551,6 +605,74 @@ export default function VisibilityDashboard() {
     );
   };
 
+  const platforms = ['Perplexity', 'Claude', 'Gemini', 'SearchGPT', 'MetaAI'] as const;
+
+  const [queries, setQueries] = useState<QueryPerformance[]>(() => 
+    Array.from({ length: 500 }, (_, i) => ({
+      id: `query-${i}`,
+      query: sampleQueries[i % sampleQueries.length].query,
+      category: sampleQueries[i % sampleQueries.length].category,
+      impact: sampleQueries[i % sampleQueries.length].impact as "High" | "Medium" | "Low",
+      userIntent: sampleQueries[i % sampleQueries.length].userIntent,
+      platforms: sampleQueries[i % sampleQueries.length].platforms.map(p => ({
+        name: p.name,
+        position: p.position,
+        cited: p.cited
+      })) as PlatformRanking[],
+      averagePosition: Number((Math.random() * 10 + 1).toFixed(1))
+    }))
+  );
+
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const parentRef = useRef<HTMLDivElement>(null);
+
+  const rowVirtualizer = useVirtualizer({
+    count: queries.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 80,
+    overscan: 5,
+  });
+
+  const [hoverState, setHoverState] = useState<{
+    isVisible: boolean;
+    query: QueryPerformance | null;
+    position: { top: number; left: number; };
+  }>({
+    isVisible: false,
+    query: null,
+    position: { top: 0, left: 0 },
+  });
+
+  const timeoutRef = useRef<NodeJS.Timeout>();
+
+  const handleMouseEnter = useCallback((e: React.MouseEvent<HTMLDivElement>, query: QueryPerformance) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const spaceBelow = viewportHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    
+    const showAbove = spaceBelow < 400 && spaceAbove > 400;
+    
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
+    setHoverState({
+      isVisible: true,
+      query,
+      position: {
+        top: rect.top + window.scrollY + (showAbove ? -10 : rect.height + 10),
+        left: Math.max(16, rect.left),
+      },
+    });
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    timeoutRef.current = setTimeout(() => {
+      setHoverState(prev => ({ ...prev, isVisible: false }));
+    }, 200);
+  }, []);
+
   return (
     <div className="p-8 bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen">
       <div className="max-w-7xl mx-auto">
@@ -568,125 +690,189 @@ export default function VisibilityDashboard() {
                 <Title className="flex items-center gap-4">
                   Monthly Visibility Performance
                   <div className="flex gap-2 items-center">
-                    <div className="w-3 h-3 rounded-full bg-indigo-500"></div>
+                    <div className="w-3 h-3 rounded-full bg-blue-500"></div>
                     <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
                     <div className="w-3 h-3 rounded-full bg-amber-500"></div>
+                    <div className="w-3 h-3 rounded-full bg-violet-500"></div>
                   </div>
                 </Title>
               </div>
               
-              <TabGroup>
-                <TabList className="mt-4">
-                  <Tab>Performance Metrics</Tab>
-                  <Tab>Detailed Data</Tab>
-                </TabList>
-                <TabPanels>
-                  <TabPanel>
-                    <div className="mt-4">
-                      <AreaChart
-                        className="h-72 mt-6"
-                        data={monthlyScores}
-                        index="month"
-                        categories={["ranking", "citations", "competition"]}
-                        colors={["indigo", "emerald", "amber"]}
-                        valueFormatter={(value: number) => `${value}%`}
-                        yAxisWidth={40}
-                        showAnimation={true}
-                        showLegend={true}
-                        curveType="natural"
-                        showGridLines={false}
-                        showXAxis={true}
-                        showYAxis={true}
-                        minValue={0}
-                        maxValue={100}
-                        customTooltip={customTooltip}
-                      />
-                      
-                      {/* Add metric cards below the chart */}
-                      <div className="grid grid-cols-3 gap-4 mt-6">
-                        <Card decoration="top" decorationColor="blue">
-                          <Text>Average Ranking</Text>
-                          <Metric className="text-blue-600">
-                            {(monthlyScores.reduce((acc, curr) => acc + curr.ranking, 0) / monthlyScores.length).toFixed(1)}%
-                          </Metric>
-                          <Text className="text-sm text-gray-500">Based on AI platform visibility</Text>
-                        </Card>
-                        
-                        <Card decoration="top" decorationColor="emerald">
-                          <Text>Citation Growth</Text>
-                          <Metric className="text-emerald-600">
-                            {(monthlyScores.reduce((acc, curr) => acc + curr.citations, 0) / monthlyScores.length).toFixed(1)}%
-                          </Metric>
-                          <Text className="text-sm text-gray-500">Average monthly citation rate</Text>
-                        </Card>
-                        
-                        <Card decoration="top" decorationColor="amber">
-                          <Text>Competitive Position</Text>
-                          <Metric className="text-amber-600">
-                            {(monthlyScores.reduce((acc, curr) => acc + curr.competition, 0) / monthlyScores.length).toFixed(1)}%
-                          </Metric>
-                          <Text className="text-sm text-gray-500">Market share indicator</Text>
-                        </Card>
+              <AreaChart
+                className="h-72 mt-6"
+                data={monthlyScores}
+                index="month"
+                categories={["percentageRanked", "avgRankingPosition", "citationAppearance", "avgCitationPosition"]}
+                colors={["blue", "emerald", "amber", "violet"]}
+                valueFormatter={(value: number) => {
+                  if (value === null) return "";
+                  return value.toFixed(1) + (value < 10 ? "" : "%");
+                }}
+                yAxisWidth={56}
+                showAnimation={true}
+                showLegend={true}
+                curveType="natural"
+                showGridLines={false}
+                showXAxis={true}
+                showYAxis={true}
+                minValue={0}
+                maxValue={50}
+                customTooltip={({ payload, active }) => {
+                  if (!active || !payload?.length) return null;
+
+                  return (
+                    <div className="p-2 bg-white/90 border border-gray-200 rounded-lg shadow-lg">
+                      <div className="text-sm font-medium mb-2">
+                        {payload[0].payload.month}
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-blue-500" />
+                          <span className="text-sm">Sources Ranking: {payload[0].payload.percentageRanked}%</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                          <span className="text-sm">Avg Rank: #{payload[0].payload.avgRankingPosition.toFixed(1)}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-amber-500" />
+                          <span className="text-sm">Sources Citing: {payload[0].payload.citationAppearance}%</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-violet-500" />
+                          <span className="text-sm">Avg Citation Pos: #{payload[0].payload.avgCitationPosition.toFixed(1)}</span>
+                        </div>
                       </div>
                     </div>
-                  </TabPanel>
-                  
-                  <TabPanel>
-                    <Table className="mt-4">
-                      <TableHead>
-                        <TableRow>
-                          <TableHeaderCell>Month</TableHeaderCell>
-                          <TableHeaderCell>Ranking Score</TableHeaderCell>
-                          <TableHeaderCell>Citation Score</TableHeaderCell>
-                          <TableHeaderCell>Competition Score</TableHeaderCell>
-                          <TableHeaderCell>Total Citations</TableHeaderCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {monthlyScores.map((item) => (
-                          <TableRow key={item.month}>
-                            <TableCell>{item.month}</TableCell>
-                            <TableCell>
-                              <Badge color="blue">{item.ranking}%</Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Badge color="emerald">{item.citations}%</Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Badge color="amber">{item.competition}%</Badge>
-                            </TableCell>
-                            <TableCell>{item.totalCitations}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </TabPanel>
-                </TabPanels>
-              </TabGroup>
+                  );
+                }}
+              />
+              
+              {/* Metric cards below the chart */}
+              <div className="grid grid-cols-4 gap-4 mt-6">
+                <Card decoration="top" decorationColor="blue">
+                  <Text>Content Ranked</Text>
+                  <Metric className="text-blue-600">
+                    {monthlyScores[monthlyScores.length - 1].percentageRanked}%
+                  </Metric>
+                  <Text className="text-sm text-gray-500">Ranking coverage</Text>
+                </Card>
+                
+                <Card decoration="top" decorationColor="emerald">
+                  <Text>Average Position</Text>
+                  <Metric className="text-emerald-600">
+                    #{monthlyScores[monthlyScores.length - 1].avgRankingPosition.toFixed(1)}
+                  </Metric>
+                  <Text className="text-sm text-gray-500">Ranking position</Text>
+                </Card>
+                
+                <Card decoration="top" decorationColor="amber">
+                  <Text>Citations</Text>
+                  <Metric className="text-amber-600">
+                    {monthlyScores[monthlyScores.length - 1].citationAppearance}%
+                  </Metric>
+                  <Text className="text-sm text-gray-500">Appearance rate</Text>
+                </Card>
+
+                <Card decoration="top" decorationColor="violet">
+                  <Text>Citation Position</Text>
+                  <Metric className="text-violet-600">
+                    #{monthlyScores[monthlyScores.length - 1].avgCitationPosition.toFixed(1)}
+                  </Metric>
+                  <Text className="text-sm text-gray-500">Citation rank</Text>
+                </Card>
+              </div>
             </Card>
           </div>
 
           {/* AI Engine Performance - Right side column */}
           <Card className="bg-white/50 backdrop-blur-sm">
             <Title>AI Engine Performance</Title>
-            <div className="space-y-4 mt-4">
+            <div className="space-y-2 mt-4">
               {aiEngineRankings.map((engine) => (
-                <div key={engine.engine} className="p-4 rounded-lg bg-gradient-to-r from-white to-gray-50">
-                  <div className="flex justify-between items-center mb-2">
-                    <Text className="font-medium">{engine.engine}</Text>
-                    <Badge color={engine.color}>{engine.visibility}%</Badge>
+                <details 
+                  key={engine.engine} 
+                  className="group bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-md transition-all duration-200"
+                >
+                  <summary className="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-50">
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className={`w-3 h-3 rounded-full transition-colors duration-300`}
+                          style={{
+                            backgroundColor: `rgba(${
+                              engine.visibility <= 25 ? '239, 68, 68' :  // red
+                              engine.visibility <= 35 ? '249, 115, 22' : // orange
+                              engine.visibility <= 40 ? '234, 179, 8' :  // yellow
+                              '34, 197, 94'                             // green
+                            }, ${engine.visibility / 100})`
+                          }}
+                        />
+                        <Text className="font-medium">{engine.engine}</Text>
+                      </div>
+                      <Text className="text-xs text-gray-500">
+                        {engine.visibility <= 25 ? '⚠️ needs attention' :
+                         engine.visibility <= 35 ? '👀 monitor closely' :
+                         engine.visibility <= 40 ? '📈 improving' :
+                         '✨ performing well'}
+                      </Text>
+                    </div>
+                    <svg 
+                      className="w-5 h-5 text-gray-500 group-open:rotate-180 transition-transform" 
+                      fill="none" 
+                      viewBox="0 0 24 24" 
+                      stroke="currentColor"
+                    >
+                      <path 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round" 
+                        strokeWidth={2} 
+                        d="M19 9l-7 7-7-7" 
+                      />
+                    </svg>
+                  </summary>
+                  <div className="p-3 border-t border-gray-200 bg-gray-50">
+                    <Grid numItems={2} className="gap-3">
+                      <Card decoration="left" decorationColor={engine.color} className="bg-white p-2">
+                        <Text className="text-xs font-medium mb-2">Ranking Performance</Text>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <Text className="text-xs text-gray-500">Content Ranked</Text>
+                            <div className="flex items-baseline gap-1">
+                              <Text className="font-semibold">{engine.percentageRanked}</Text>
+                              <Text className="text-xs text-gray-500">%</Text>
+                            </div>
+                          </div>
+                          <div>
+                            <Text className="text-xs text-gray-500">Avg Position</Text>
+                            <div className="flex items-baseline gap-1">
+                              <Text className="font-semibold">#{engine.avgRankingPosition.toFixed(1)}</Text>
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
+                      
+                      <Card decoration="left" decorationColor={engine.color} className="bg-white p-2">
+                        <Text className="text-xs font-medium mb-2">Citation Performance</Text>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <Text className="text-xs text-gray-500">Citation Appearances</Text>
+                            <div className="flex items-baseline gap-1">
+                              <Text className="font-semibold">{engine.citationAppearance}</Text>
+                              <Text className="text-xs text-gray-500">%</Text>
+                            </div>
+                          </div>
+                          <div>
+                            <Text className="text-xs text-gray-500">Avg Position</Text>
+                            <div className="flex items-baseline gap-1">
+                              <Text className="font-semibold">#{engine.avgCitationPosition.toFixed(1)}</Text>
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
+                    </Grid>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                      className={`h-2 rounded-full bg-${engine.color}-500`}
-                      style={{ width: `${engine.visibility}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between mt-2 text-sm text-gray-500">
-                    <span>Citations: {engine.mentions}</span>
-                    <span>Sentiment: {engine.sentiment}%</span>
-                  </div>
-                </div>
+                </details>
               ))}
             </div>
           </Card>
@@ -695,218 +881,191 @@ export default function VisibilityDashboard() {
         {/* Second Row - Full Width Query Section */}
         <div className="mb-6">
           {/* Query Appearances - Full Width */}
-          <Card className="bg-white/50 backdrop-blur-sm">
-            <Title>Top Performing Queries</Title>
-            <TabGroup>
-              <TabList className="mt-4">
-                <Tab>Overview</Tab>
-                <Tab>Platform Details</Tab>
-              </TabList>
-              <TabPanels>
-                <TabPanel>
-                  <Table className="mt-4">
-                    <TableHead>
-                      <TableRow>
-                        <TableHeaderCell>Query & Intent</TableHeaderCell>
-                        <TableHeaderCell>Category</TableHeaderCell>
-                        <TableHeaderCell>Best Position</TableHeaderCell>
-                        <TableHeaderCell>Platform Rankings</TableHeaderCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {sampleQueries.map((query) => {
-                        const validPositions = query.platforms
-                          .map(p => p.position)
-                          .filter((pos): pos is number => pos !== '-');
-                        
-                        const bestPosition = validPositions.length > 0 
-                          ? Math.min(...validPositions)
-                          : '-';
-                        
-                        return (
-                          <TableRow key={query.query}>
-                            <TableCell>
-                              <div className="space-y-1">
-                                <Text className="font-medium">{query.query}</Text>
-                                <Badge color="gray" size="sm">{query.userIntent}</Badge>
+          <div className="bg-white border rounded-lg shadow-lg">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <Title>Query Performance Analysis</Title>
+                <button
+                  onClick={() => {
+                    setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+                    setQueries(prev => [...prev].sort((a, b) => 
+                      sortOrder === 'asc' 
+                        ? a.averagePosition - b.averagePosition
+                        : b.averagePosition - a.averagePosition
+                    ));
+                  }}
+                  className="flex items-center gap-2 px-3 py-1 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-600 text-sm transition-colors"
+                >
+                  Sort by Position {sortOrder === 'asc' ? '↑' : '↓'}
+                </button>
+              </div>
+
+              <div className="relative">
+                <div className="sticky top-0 bg-white z-10 border-b border-gray-200">
+                  <div className="grid" style={{ gridTemplateColumns: '1fr repeat(5, 80px)' }}>
+                    <div className="px-3 py-2 font-medium text-gray-700">Query</div>
+                    {platforms.map(platform => (
+                      <div key={platform} className="px-1 py-2 text-center font-medium text-gray-700 text-xs">
+                        {platform}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div 
+                  ref={parentRef}
+                  className="h-[600px] overflow-auto bg-white"
+                >
+                  <div
+                    style={{
+                      height: `${rowVirtualizer.getTotalSize()}px`,
+                      width: '100%',
+                      position: 'relative',
+                    }}
+                  >
+                    {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                      const query = queries[virtualRow.index];
+                      return (
+                        <div
+                          key={query.id}
+                          data-index={virtualRow.index}
+                          ref={rowVirtualizer.measureElement}
+                          className="absolute top-0 left-0 w-full"
+                          style={{
+                            transform: `translateY(${virtualRow.start}px)`,
+                          }}
+                        >
+                          <div 
+                            className="group hover:bg-blue-50 transition-colors border-b border-gray-200"
+                            onMouseEnter={(e) => handleMouseEnter(e, query)}
+                            onMouseLeave={handleMouseLeave}
+                          >
+                            <div className="grid items-center" style={{ gridTemplateColumns: '1fr repeat(5, 80px)' }}>
+                              <div className="px-3 py-2 min-w-0">
+                                <Text className="text-gray-900 truncate">
+                                  {query.query}
+                                </Text>
                               </div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge color="blue" size="lg">{query.category}</Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Badge 
-                                color={getPositionBadgeColor(bestPosition)}
-                                size="lg"
-                              >
-                                {bestPosition === '-' ? "Not Listed" : `#${bestPosition}`}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex flex-wrap gap-2">
-                                {query.platforms.map((platform) => (
-                                  <div 
-                                    key={platform.name}
-                                    className="flex items-center space-x-1"
-                                  >
-                                    <Text className="text-sm font-medium">{platform.name}:</Text>
-                                    <Badge 
-                                      color={getPositionBadgeColor(platform.position as number | '-')}
-                                      size="sm"
-                                    >
-                                      {platform.position === '-' ? "NL" : `#${platform.position}`}
-                                    </Badge>
+
+                              {platforms.map(platform => {
+                                const platformData = query.platforms.find(p => p.name === platform) || 
+                                  { position: '-', cited: false };
+                                return (
+                                  <div key={platform} className="px-1 py-2 flex items-center justify-center">
+                                    <div className="flex items-center gap-0.5">
+                                      <Text className={`text-xs ${
+                                        platformData.position === '-' ? 'text-gray-400' :
+                                        Number(platformData.position) <= 2 ? 'text-green-600 font-medium' :
+                                        Number(platformData.position) <= 4 ? 'text-yellow-600' :
+                                        'text-orange-600'
+                                      }`}>
+                                        {platformData.position === '-' ? '-' : `#${platformData.position}`}
+                                      </Text>
+                                      {platformData.cited && (
+                                        <div className="w-1 h-1 rounded-full bg-green-500" title="Cited"/>
+                                      )}
+                                    </div>
                                   </div>
-                                ))}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </TabPanel>
-                <TabPanel>
-                  <Table className="mt-4">
-                    <TableHead>
-                      <TableRow>
-                        <TableHeaderCell>Query</TableHeaderCell>
-                        <TableHeaderCell>Platform</TableHeaderCell>
-                        <TableHeaderCell>Position</TableHeaderCell>
-                        <TableHeaderCell>Status</TableHeaderCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {sampleQueries.flatMap((query) =>
-                        query.platforms.map((platform, idx) => (
-                          <TableRow key={`${query.query}-${platform.name}`}>
-                            {idx === 0 && (
-                              <TableCell rowSpan={query.platforms.length}>
-                                <Text className="font-medium">{query.query}</Text>
-                                <Text className="text-xs text-gray-500">{query.category}</Text>
-                              </TableCell>
-                            )}
-                            <TableCell>
-                              <Badge color="blue">{platform.name}</Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Badge color={getPositionBadgeColor(platform.position as number | '-')}>
-                                {platform.position === '-' ? "Not Listed" : `#${platform.position}`}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              {platform.cited ? (
-                                <Badge color="green">Cited</Badge>
-                              ) : (
-                                <Badge color="red">Not Cited</Badge>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </TabPanel>
-              </TabPanels>
-            </TabGroup>
-          </Card>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Third Row - Citation Leaderboard with Analysis and ICP side by side */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* Citation Leaderboard */}
           <Card className="bg-white/50 backdrop-blur-sm">
-            <Title>Industry Citation Leaderboard & Competitor Analysis</Title>
-            <TabGroup>
-              <TabList className="mt-4">
-                <Tab>Overview</Tab>
-                <Tab>Detailed Analysis</Tab>
-              </TabList>
-              <TabPanels>
-                <TabPanel>
-                  <Table className="mt-4">
-                    <TableHead>
-                      <TableRow>
-                        <TableHeaderCell>Company</TableHeaderCell>
-                        <TableHeaderCell>Citations</TableHeaderCell>
-                        <TableHeaderCell>Market Share</TableHeaderCell>
-                        <TableHeaderCell>Trend</TableHeaderCell>
-                        <TableHeaderCell>Key Strength</TableHeaderCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {citationLeaderboard.map((company) => (
-                        <TableRow key={company.company}>
-                          <TableCell>
-                            <Text className={company.company === 'Ariga.io' ? 'font-bold text-blue-600' : ''}>
-                              {company.company}
-                            </Text>
-                          </TableCell>
-                          <TableCell>
-                            <Text>{company.citations}</Text>
-                          </TableCell>
-                          <TableCell>
-                            <Text>{company.analysis.marketShare}</Text>
-                          </TableCell>
-                          <TableCell>
-                            <Badge color={company.trend.startsWith('+') ? 'green' : 'red'}>
-                              {company.trend}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Text className="text-sm text-gray-600">
-                              {company.analysis.strengths[0]}
-                            </Text>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TabPanel>
-                <TabPanel>
-                  <div className="space-y-6 mt-4">
-                    {citationLeaderboard.map((company) => (
-                      <Card key={company.company} className="bg-white/70">
-                        <div className="flex justify-between items-start mb-4">
-                          <div>
-                            <Text className={`text-xl font-semibold ${company.company === 'Ariga.io' ? 'text-blue-600' : ''}`}>
-                              {company.company}
-                            </Text>
-                            <Text className="text-sm text-gray-600">
-                              Market Share: {company.analysis.marketShare}
-                            </Text>
-                          </div>
-                          <Badge size="lg" color={company.trend.startsWith('+') ? 'green' : 'red'}>
-                            {company.trend} Growth
-                          </Badge>
+            <Title>Industry Citation Leaderboard</Title>
+            <div className="mt-4 space-y-4">
+              {competitorData
+                .sort((a, b) => b.overallScore - a.overallScore)
+                .map((competitor, index) => (
+                  <details 
+                    key={competitor.company}
+                    className="group bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-md transition-all duration-200"
+                  >
+                    <summary className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50">
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-3">
+                          <Text className="font-semibold text-lg">#{index + 1}</Text>
+                          <Text className={`font-medium ${
+                            competitor.company === 'Ariga.io' ? 'text-blue-600' : ''
+                          }`}>
+                            {competitor.company}
+                          </Text>
                         </div>
-                        
-                        <Grid numItems={1} numItemsSm={2} className="gap-4 mt-4">
-                          <Card decoration="top" decorationColor="blue">
-                            <Title>Key Strengths</Title>
-                            <List className="mt-2">
-                              {company.analysis.strengths.map((strength, index) => (
-                                <ListItem key={index}>
-                                  <Text>{strength}</Text>
-                                </ListItem>
-                              ))}
-                            </List>
-                          </Card>
-                          
-                          <Card decoration="top" decorationColor="emerald">
-                            <Title>Recent Updates</Title>
-                            <Text className="mt-2">{company.analysis.recentUpdates}</Text>
-                            <Text className="mt-2 text-sm text-gray-600">
-                              Citation Context: {company.analysis.citationContext}
-                            </Text>
-                          </Card>
-                        </Grid>
-                      </Card>
-                    ))}
-                  </div>
-                </TabPanel>
-              </TabPanels>
-            </TabGroup>
+                        <Badge color={competitor.trend.startsWith('+') ? 'green' : 'red'}>
+                          {competitor.trend}
+                        </Badge>
+                      </div>
+                      <svg 
+                        className="w-5 h-5 text-gray-500 group-open:rotate-180 transition-transform" 
+                        fill="none" 
+                        viewBox="0 0 24 24" 
+                        stroke="currentColor"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </summary>
+
+                    <div className="p-4 border-t border-gray-200 bg-gray-50">
+                      <Grid numItems={2} className="gap-4">
+                        <Card decoration="left" decorationColor="blue" className="bg-white">
+                          <Text className="font-medium mb-2">Ranking Performance</Text>
+                          <div className="space-y-3">
+                            <div className="flex justify-between items-center">
+                              <Text className="text-sm text-gray-600">Content Ranked</Text>
+                              <div className="flex items-baseline gap-1">
+                                <Text className="font-semibold">{competitor.percentageRanked}</Text>
+                                <Text className="text-sm text-gray-500">%</Text>
+                              </div>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <Text className="text-sm text-gray-600">Average Position</Text>
+                              <Text className="font-semibold">#{competitor.avgRankingPosition.toFixed(1)}</Text>
+                            </div>
+                          </div>
+                        </Card>
+
+                        <Card decoration="left" decorationColor="emerald" className="bg-white">
+                          <Text className="font-medium mb-2">Citation Performance</Text>
+                          <div className="space-y-3">
+                            <div className="flex justify-between items-center">
+                              <Text className="text-sm text-gray-600">Citation Appearances</Text>
+                              <div className="flex items-baseline gap-1">
+                                <Text className="font-semibold">{competitor.citationAppearance}</Text>
+                                <Text className="text-sm text-gray-500">%</Text>
+                              </div>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <Text className="text-sm text-gray-600">Average Position</Text>
+                              <Text className="font-semibold">#{competitor.avgCitationPosition.toFixed(1)}</Text>
+                            </div>
+                          </div>
+                        </Card>
+                      </Grid>
+
+                      <div className="mt-4">
+                        <div className="w-full bg-gray-100 rounded-full h-2">
+                          <div 
+                            className="h-2 rounded-full bg-blue-500 transition-all duration-500"
+                            style={{ width: `${competitor.overallScore}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </details>
+                ))}
+            </div>
           </Card>
 
           {/* ICP Analysis */}
@@ -915,28 +1074,52 @@ export default function VisibilityDashboard() {
             <div className="space-y-6 mt-4">
               {icpData.map((icp) => (
                 <Card key={icp.profile} decoration="top" decorationColor={icp.color}>
-                  <Flex alignItems="start">
-                    <div>
-                      <Text className="font-medium">{icp.profile}</Text>
-                      <Metric className="mt-1">{icp.score}%</Metric>
-                    </div>
-                    <div className="space-y-1 text-right">
-                      <Badge color={icp.color} size="lg">
-                        {icp.engagement} Engagement
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-start">
+                      <Text className="font-medium text-lg">{icp.profile}</Text>
+                      <Badge size="lg" color={icp.color}>
+                        Score: {icp.overallScore}%
                       </Badge>
-                      <Text className="text-sm">
-                        Conv. Rate: {icp.conversionRate}
-                      </Text>
                     </div>
-                  </Flex>
-                  <div className="mt-4">
-                    <Text className="text-sm font-medium mb-2">Profile Characteristics:</Text>
-                    <div className="flex flex-wrap gap-2">
-                      {icp.characteristics.map((char, idx) => (
-                        <Badge key={idx} color={icp.color} size="sm">
-                          {char}
-                        </Badge>
-                      ))}
+
+                    <Grid numItems={2} className="gap-4">
+                      <Card decoration="left" decorationColor={icp.color} className="bg-white/50">
+                        <Text className="text-sm font-medium mb-2">Visibility Metrics</Text>
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <Text className="text-xs text-gray-500">Visibility Probability</Text>
+                            <Text className="font-medium">{icp.visibilityProbability}%</Text>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <Text className="text-xs text-gray-500">Recommendation Probability</Text>
+                            <Text className="font-medium">{icp.recommendationProbability}%</Text>
+                          </div>
+                        </div>
+                      </Card>
+
+                      <Card decoration="left" decorationColor={icp.color} className="bg-white/50">
+                        <Text className="text-sm font-medium mb-2">Performance Metrics</Text>
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <Text className="text-xs text-gray-500">Average Ranking</Text>
+                            <Text className="font-medium">#{icp.avgRanking.toFixed(1)}</Text>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <Text className="text-xs text-gray-500">Citation Appearances</Text>
+                            <Text className="font-medium">{icp.citationAppearances}%</Text>
+                          </div>
+                        </div>
+                      </Card>
+                    </Grid>
+
+                    <div className="w-full bg-gray-100 rounded-full h-2">
+                      <div 
+                        className="h-2 rounded-full transition-all duration-500"
+                        style={{ 
+                          width: `${icp.overallScore}%`,
+                          backgroundColor: `var(--tremor-${icp.color}-500)`
+                        }}
+                      />
                     </div>
                   </div>
                 </Card>
@@ -1021,6 +1204,15 @@ export default function VisibilityDashboard() {
             </TabGroup>
           </Card>
         </div>
+
+        {hoverState.query && (
+          <HoverCard 
+            query={hoverState.query}
+            platforms={platforms}
+            isVisible={hoverState.isVisible}
+            position={hoverState.position}
+          />
+        )}
       </div>
     </div>
   );
