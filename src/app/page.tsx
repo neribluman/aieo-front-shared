@@ -3,7 +3,7 @@
 import { Card, Title, AreaChart, Grid, Text, Metric, Flex, TabGroup, TabList, Tab, TabPanels, TabPanel, Badge } from '@tremor/react';
 import WorldMap from "react-svg-worldmap";
 import { CountryContext } from "react-svg-worldmap";
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 
 // First, let's define a type for the position
@@ -100,6 +100,18 @@ interface Citation {
     message: string;
   } | null;
   quote: string;
+}
+
+// First, update the interface (add this if it doesn't exist):
+interface AIEngine {
+  engine: string;
+  visibility: number;
+  percentageRanked: number;
+  recommendationProbability: number;
+  avgRankingPosition: number;
+  citationAppearance: number;
+  avgCitationPosition: number;
+  color: string;
 }
 
 export default function VisibilityDashboard() {
@@ -303,11 +315,12 @@ export default function VisibilityDashboard() {
   ];
 
   // Enhanced AI Engine Rankings
-  const aiEngineRankings = [
+  const aiEngineRankings: AIEngine[] = [
     { 
       engine: 'Perplexity',
       visibility: 45,
       percentageRanked: 45,
+      recommendationProbability: 42,
       avgRankingPosition: 2.5,
       citationAppearance: 38,
       avgCitationPosition: 3.8,
@@ -317,6 +330,7 @@ export default function VisibilityDashboard() {
       engine: 'SearchGPT',
       visibility: 32,
       percentageRanked: 35,
+      recommendationProbability: 38,
       avgRankingPosition: 3.2,
       citationAppearance: 28,
       avgCitationPosition: 5.2,
@@ -326,6 +340,7 @@ export default function VisibilityDashboard() {
       engine: 'Gemini',
       visibility: 38,
       percentageRanked: 42,
+      recommendationProbability: 40,
       avgRankingPosition: 2.8,
       citationAppearance: 35,
       avgCitationPosition: 4.5,
@@ -335,6 +350,7 @@ export default function VisibilityDashboard() {
       engine: 'Claude',
       visibility: 36,
       percentageRanked: 38,
+      recommendationProbability: 35,
       avgRankingPosition: 3.0,
       citationAppearance: 32,
       avgCitationPosition: 4.8,
@@ -344,6 +360,7 @@ export default function VisibilityDashboard() {
       engine: 'MetaAI',
       visibility: 24,
       percentageRanked: 25,
+      recommendationProbability: 28,
       avgRankingPosition: 4.2,
       citationAppearance: 15,
       avgCitationPosition: 8.5,
@@ -1580,85 +1597,85 @@ export default function VisibilityDashboard() {
                     </svg>
                   </summary>
 
-                  <div className="p-4 border-t border-gray-200 bg-gray-50">
-                    <Grid numItems={2} className="gap-4">
-                      <Card decoration="left" decorationColor={icp.color} className="bg-white/50">
-                        <Text className="text-sm font-medium mb-2">Performance Metrics</Text>
-                        <div className="space-y-2">
-                          <div className="flex justify-between items-center">
-                            <Text className="text-xs text-gray-500">Company Mentioned</Text>
-                            <Text className="font-medium">{icp.visibilityProbability}%</Text>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <Text className="text-xs text-gray-500">Recommendation Probability</Text>
-                            <Text className="font-medium">{icp.recommendationProbability}%</Text>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <Text className="text-xs text-gray-500">Average Ranking</Text>
-                            <Text className="font-medium">#{icp.avgRanking.toFixed(1)}</Text>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <Text className="text-xs text-gray-500">Citation Appearances</Text>
-                            <Text className="font-medium">{icp.citationAppearances}%</Text>
-                          </div>
-                        </div>
-                      </Card>
-
-                      <Card decoration="left" decorationColor={icp.color} className="bg-white/50">
-                        <Text className="text-sm font-medium mb-2">Top Competitors</Text>
-                        <div className="space-y-2">
-                          {getCompetitorsForICP(icp.profile).map((competitor, index) => (
-                            <div 
-                              key={competitor.name}
-                              className="flex items-center justify-between p-2 rounded"
-                            >
-                              <div className="flex items-center gap-2">
-                                <Text className="text-xs font-medium">#{index + 1}</Text>
-                                <Text 
-                                  className={`text-sm ${
-                                    competitor.name === 'Ariga.io' ? 'text-blue-600 font-medium' : ''
-                                  }`}
-                                >
-                                  {competitor.name}
-                                </Text>
-                              </div>
-                              <div className="flex items-center gap-1">
-                                {competitor.trend === 'up' && (
-                                  <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-                                  </svg>
-                                )}
-                                {competitor.trend === 'down' && (
-                                  <svg className="w-4 h-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                                  </svg>
-                                )}
-                                {competitor.trend === 'same' && (
-                                  <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14" />
-                                  </svg>
-                                )}
-                              </div>
+                    <div className="p-4 border-t border-gray-200 bg-gray-50">
+                      <Grid numItems={2} className="gap-4">
+                        <Card decoration="left" decorationColor={icp.color} className="bg-white/50">
+                          <Text className="text-sm font-medium mb-2">Performance Metrics</Text>
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                              <Text className="text-xs text-gray-500">Company Mentioned</Text>
+                              <Text className="font-medium">{icp.visibilityProbability}%</Text>
                             </div>
-                          ))}
-                        </div>
-                      </Card>
-                    </Grid>
+                            <div className="flex justify-between items-center">
+                              <Text className="text-xs text-gray-500">Recommendation Probability</Text>
+                              <Text className="font-medium">{icp.recommendationProbability}%</Text>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <Text className="text-xs text-gray-500">Average Ranking</Text>
+                              <Text className="font-medium">#{icp.avgRanking.toFixed(1)}</Text>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <Text className="text-xs text-gray-500">Citation Appearances</Text>
+                              <Text className="font-medium">{icp.citationAppearances}%</Text>
+                            </div>
+                          </div>
+                        </Card>
 
-                    <div className="mt-4">
-                      <div className="w-full bg-gray-100 rounded-full h-2">
-                        <div 
-                          className="h-2 rounded-full transition-all duration-500"
-                          style={{ 
-                            width: `${icp.overallScore}%`,
-                            backgroundColor: `var(--tremor-${icp.color}-500)`
-                          }}
-                        />
+                        <Card decoration="left" decorationColor={icp.color} className="bg-white/50">
+                          <Text className="text-sm font-medium mb-2">Top Competitors</Text>
+                          <div className="space-y-2">
+                            {getCompetitorsForICP(icp.profile).map((competitor, index) => (
+                              <div 
+                                key={competitor.name}
+                                className="flex items-center justify-between p-2 rounded"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <Text className="text-xs font-medium">#{index + 1}</Text>
+                                  <Text 
+                                    className={`text-sm ${
+                                      competitor.name === 'Ariga.io' ? 'text-blue-600 font-medium' : ''
+                                    }`}
+                                  >
+                                    {competitor.name}
+                                  </Text>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  {competitor.trend === 'up' && (
+                                    <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                                    </svg>
+                                  )}
+                                  {competitor.trend === 'down' && (
+                                    <svg className="w-4 h-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                                    </svg>
+                                  )}
+                                  {competitor.trend === 'same' && (
+                                    <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14" />
+                                    </svg>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </Card>
+                      </Grid>
+
+                      <div className="mt-4">
+                        <div className="w-full bg-gray-100 rounded-full h-2">
+                          <div 
+                            className="h-2 rounded-full transition-all duration-500"
+                            style={{ 
+                              width: `${icp.overallScore}%`,
+                              backgroundColor: `var(--tremor-${icp.color}-500)`
+                            }}
+                          />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </details>
-              ))}
+                  </details>
+                ))}
             </div>
           </Card>
         </div>
