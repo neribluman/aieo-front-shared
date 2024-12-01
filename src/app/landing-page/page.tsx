@@ -2,8 +2,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Input } from "@/components/ui/input";
-import { ArrowRight } from "lucide-react";
-import ParticleBackground from './components/ParticleBackground';
+import { Search, ArrowRight } from "lucide-react";
 
 export default function LandingPage() {
   const [url, setUrl] = useState('');
@@ -11,7 +10,26 @@ export default function LandingPage() {
 
   return (
     <main className="min-h-screen relative overflow-hidden bg-gradient-to-b from-white via-blue-50 to-white">
-      <ParticleBackground />
+      {/* Grid background */}
+      <div className="absolute inset-0 bg-grid-pattern opacity-[0.03]" />
+      
+      {/* Floating gradient orbs */}
+      <div className="absolute inset-0 overflow-hidden">
+        <motion.div
+          className="absolute w-[600px] h-[600px] rounded-full bg-gradient-radial from-blue-400/10 to-transparent blur-3xl"
+          animate={{
+            x: ['-10%', '10%'],
+            y: ['-10%', '10%'],
+          }}
+          transition={{
+            duration: 20,
+            repeat: Infinity,
+            repeatType: 'reverse',
+            ease: 'easeInOut',
+          }}
+          style={{ top: '20%', left: '60%' }}
+        />
+      </div>
 
       <div className="relative z-10">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 min-h-screen flex flex-col items-center justify-center">
