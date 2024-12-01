@@ -2470,20 +2470,12 @@ export default function VisibilityDashboard() {
 
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const parentRef = useRef<HTMLDivElement>(null);
-
   const rowVirtualizer = useVirtualizer({
     count: queries.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => 60,
     overscan: 10,
   });
-
-  const getPositionBadgeColor = (position: Position): string => {
-    if (position === '-') return "red";
-    if (position <= 2) return "green";
-    if (position <= 4) return "yellow";
-    return "orange";
-  };
 
   const getDetailedRankings = (position: Position): DetailedRanking[] => {
     if (position === '-') return [];
@@ -3041,7 +3033,7 @@ export default function VisibilityDashboard() {
         year: 'numeric'
       });
       
-      const dataPoint: any = {
+      const dataPoint: Record<string, string | number> = {
         date: formattedDate,
       };
 
