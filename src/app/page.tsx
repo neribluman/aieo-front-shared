@@ -1,12 +1,12 @@
 'use client';
 
-import { Card, Title, LineChart, Grid, Text, Metric, Flex, TabGroup, TabList, Tab, TabPanels, TabPanel, Badge } from '@tremor/react';
+import { Card, Title, LineChart, Text, Metric, Flex, TabGroup, TabList, Tab, TabPanels, TabPanel, Badge } from '@tremor/react';
 import WorldMap from "react-svg-worldmap";
 import { CountryContext } from "react-svg-worldmap";
 import { useState, useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/Tabs"
-import { ChevronRightIcon, ChevronLeftIcon, GlobeAltIcon, BuildingOfficeIcon, UserIcon, MapIcon } from '@heroicons/react/24/outline';
+import { ChevronRightIcon, ChevronLeftIcon, GlobeAltIcon, BuildingOfficeIcon, UserIcon } from '@heroicons/react/24/outline';
 
 // First, let's define a type for the position
 type Position = number | '-';
@@ -1441,7 +1441,6 @@ function BuyingJourneyFunnel() {
     </div>
   );
 }
-
 // Update your VisibilityDashboard component to include the new funnel
 export default function VisibilityDashboard() {
   // Monthly visibility scores
@@ -3588,3 +3587,4 @@ export default function VisibilityDashboard() {
     </div>
   );
 } 
+
