@@ -2,11 +2,11 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Input } from "@/components/ui/input";
-import { Search, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { useCallback } from "react";
 import Particles from "@tsparticles/react";
 import { loadSlim } from "@tsparticles/slim";
-import type { Container, Engine } from "@tsparticles/engine";
+import type { Engine } from "@tsparticles/engine";
 
 export default function LandingPage() {
   const [url, setUrl] = useState('');
