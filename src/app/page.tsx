@@ -1,12 +1,12 @@
 'use client';
 
-import { Card, Title, LineChart, Grid, Text, Metric, Flex, TabGroup, TabList, Tab, TabPanels, TabPanel, Badge } from '@tremor/react';
+import { Card, Title, LineChart, Text, Metric, Flex, TabGroup, TabList, Tab, TabPanels, TabPanel, Badge } from '@tremor/react';
 import WorldMap from "react-svg-worldmap";
 import { CountryContext } from "react-svg-worldmap";
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/Tabs"
-import { ChevronRightIcon, ChevronLeftIcon, GlobeAltIcon, BuildingOfficeIcon, UserIcon, MapIcon } from '@heroicons/react/24/outline';
+import { ChevronRightIcon, ChevronLeftIcon, GlobeAltIcon, BuildingOfficeIcon, UserIcon } from '@heroicons/react/24/outline';
 
 // First, let's define a type for the position
 type Position = number | '-';
@@ -1442,7 +1442,6 @@ function BuyingJourneyFunnel() {
   );
 }
 
-// Update your VisibilityDashboard component to include the new funnel
 export default function VisibilityDashboard() {
   // Monthly visibility scores
   const monthlyScores = [
@@ -2452,7 +2451,7 @@ export default function VisibilityDashboard() {
   const platforms = ['Perplexity', 'Claude', 'Gemini', 'SearchGPT', 'AIO'] as const;
 
   // Update the queries initialization
-  const [queries, setQueries] = useState<QueryPerformance[]>(() => 
+  const [queries] = useState<QueryPerformance[]>(() => 
     Array.from({ length: 500 }, (_, i) => ({
       id: `query-${i}`,
       query: sampleQueries[i % sampleQueries.length].query,
