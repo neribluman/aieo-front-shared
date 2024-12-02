@@ -602,18 +602,9 @@ function BuyingJourneyFunnel() {
   };
 
   // Update the back navigation
-  const handleBack = (index: number) => {
-    const newPath = activePath.slice(0, index + 1);
-    const previousNode = newPath[newPath.length - 1];
-    handleNavigation(
-      previousNode ? {
-        id: previousNode.id,
-        name: previousNode.name,
-        metrics: [],
-        details: {}
-      } : null,
-      newPath
-    );
+  const handleBack = () => {
+    const newPath = activePath.slice(0, -1);
+    handleNavigation(null, newPath);
   };
 
   // Update the renderBreadcrumbs function
@@ -745,7 +736,7 @@ function BuyingJourneyFunnel() {
                   </div>
                 </div>
                 <button
-                  onClick={() => handleBackClick('region')}
+                  onClick={handleBack}
                   className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600"
                 >
                   <ChevronLeftIcon className="w-4 h-4" />
@@ -806,7 +797,7 @@ function BuyingJourneyFunnel() {
                   </div>
                 </div>
                 <button
-                  onClick={() => handleBackClick('vertical')}
+                  onClick={handleBack}
                   className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600"
                 >
                   <ChevronLeftIcon className="w-4 h-4" />
@@ -870,7 +861,7 @@ function BuyingJourneyFunnel() {
                   </div>
                 </div>
                 <button
-                  onClick={() => handleBackClick('persona')}
+                  onClick={handleBack}
                   className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600"
                 >
                   <ChevronLeftIcon className="w-4 h-4" />
@@ -1143,7 +1134,7 @@ function BuyingJourneyFunnel() {
   };
 
   // Add the missing handleBackClick function
-  const handleBackClick = (level: string) => {
+  const handleBackClick = () => {
     const newPath = activePath.slice(0, -1);
     handleNavigation(null, newPath);
   };
@@ -2451,7 +2442,7 @@ export default function VisibilityDashboard() {
   const platforms = ['Perplexity', 'Claude', 'Gemini', 'SearchGPT', 'AIO'] as const;
 
   // Update the queries initialization
-  const [queries, setQueries] = useState<QueryPerformance[]>(() => 
+  const [queries] = useState<QueryPerformance[]>(() => 
     Array.from({ length: 500 }, (_, i) => ({
       id: `query-${i}`,
       query: sampleQueries[i % sampleQueries.length].query,
@@ -2468,14 +2459,7 @@ export default function VisibilityDashboard() {
     }))
   );
 
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const parentRef = useRef<HTMLDivElement>(null);
-  const rowVirtualizer = useVirtualizer({
-    count: queries.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => 60,
-    overscan: 10,
-  });
 
   const getDetailedRankings = (position: Position): DetailedRanking[] => {
     if (position === '-') return [];
@@ -2503,76 +2487,6 @@ export default function VisibilityDashboard() {
     }
 
     return rankings;
-  };
-
-  const getCompetitorsForICP = (profile: string): { name: string; trend: 'up' | 'down' | 'same' }[] => {
-    const competitorsByProfile: { [key: string]: { name: string; trend: 'up' | 'down' | 'same' }[] } = {
-      'Enterprise DevOps Teams': [
-        { name: 'Redgate', trend: 'same' },
-        { name: 'Ariga.io', trend: 'up' },
-        { name: 'PlanetScale', trend: 'down' },
-        { name: 'Hasura', trend: 'up' },
-        { name: 'Atlas', trend: 'down' }
-      ],
-      'Cloud-Native Startups': [
-        { name: 'Ariga.io', trend: 'up' },
-        { name: 'PlanetScale', trend: 'same' },
-        { name: 'Hasura', trend: 'down' },
-        { name: 'Atlas', trend: 'up' },
-        { name: 'Redgate', trend: 'down' }
-      ],
-      'Financial Services': [
-        { name: 'Redgate', trend: 'same' },
-        { name: 'Atlas', trend: 'up' },
-        { name: 'PlanetScale', trend: 'down' },
-        { name: 'Ariga.io', trend: 'up' },
-        { name: 'Hasura', trend: 'down' }
-      ],
-      'SaaS Providers': [
-        { name: 'PlanetScale', trend: 'up' },
-        { name: 'Hasura', trend: 'up' },
-        { name: 'Ariga.io', trend: 'up' },
-        { name: 'Atlas', trend: 'same' },
-        { name: 'Redgate', trend: 'down' }
-      ],
-      'Mid-Market Companies': [
-        { name: 'PlanetScale', trend: 'up' },
-        { name: 'Ariga.io', trend: 'up' },
-        { name: 'Redgate', trend: 'down' },
-        { name: 'Atlas', trend: 'same' },
-        { name: 'Hasura', trend: 'down' }
-      ],
-      'E-commerce Platforms': [
-        { name: 'Hasura', trend: 'up' },
-        { name: 'Ariga.io', trend: 'up' },
-        { name: 'PlanetScale', trend: 'down' },
-        { name: 'Atlas', trend: 'same' },
-        { name: 'Redgate', trend: 'down' }
-      ],
-      'Healthcare Tech': [
-        { name: 'Redgate', trend: 'same' },
-        { name: 'Atlas', trend: 'up' },
-        { name: 'Ariga.io', trend: 'up' },
-        { name: 'PlanetScale', trend: 'down' },
-        { name: 'Hasura', trend: 'down' }
-      ],
-      'Government & Public Sector': [
-        { name: 'Atlas', trend: 'up' },
-        { name: 'Redgate', trend: 'same' },
-        { name: 'Ariga.io', trend: 'up' },
-        { name: 'Hasura', trend: 'down' },
-        { name: 'PlanetScale', trend: 'down' }
-      ],
-      'Educational Institutions': [
-        { name: 'PlanetScale', trend: 'up' },
-        { name: 'Ariga.io', trend: 'up' },
-        { name: 'Atlas', trend: 'down' },
-        { name: 'Hasura', trend: 'same' },
-        { name: 'Redgate', trend: 'down' }
-      ]
-    };
-
-    return competitorsByProfile[profile] || [];
   };
 
   const topCitations: Citation[] = [
