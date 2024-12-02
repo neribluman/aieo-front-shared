@@ -1,9 +1,11 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 import { Card, Title, LineChart, Text, Metric, Flex, TabGroup, TabList, Tab, TabPanels, TabPanel, Badge } from '@tremor/react';
 import WorldMap from "react-svg-worldmap";
 import { CountryContext } from "react-svg-worldmap";
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/Tabs"
 import { ChevronRightIcon, ChevronLeftIcon, GlobeAltIcon, BuildingOfficeIcon, UserIcon } from '@heroicons/react/24/outline';
 
@@ -201,46 +203,6 @@ function TransitionWrapper({ children, isVisible }: { children: React.ReactNode;
   );
 }
 
-// Add this before the BuyingJourneyFunnel component
-const sampleQueries = [
-  {
-    query: "What challenges do teams face with manual database schema changes?",
-    category: "Problem Recognition",
-    impact: "High" as const,
-    userIntent: "Research",
-    buyingJourney: "Problem Exploration" as BuyingJourneyStage,
-    platforms: [
-      { name: "Perplexity", position: 2 as Position, cited: true },
-      { name: "Claude", position: 4 as Position, cited: true },
-      { name: "Gemini", position: '-' as Position, cited: false }
-    ]
-  },
-  {
-    query: "Best practices for database schema versioning",
-    category: "Problem Recognition",
-    impact: "Medium" as const,
-    userIntent: "Research",
-    buyingJourney: "Solution Education" as BuyingJourneyStage,
-    platforms: [
-      { name: "Perplexity", position: 1 as Position, cited: true },
-      { name: "Claude", position: 3 as Position, cited: true },
-      { name: "Gemini", position: 5 as Position, cited: false }
-    ]
-  },
-  {
-    query: "Database CI/CD pipeline automation tools",
-    category: "Research",
-    impact: "High" as const,
-    userIntent: "Technical",
-    buyingJourney: "Solution Comparison" as BuyingJourneyStage,
-    platforms: [
-      { name: "Claude", position: 2 as Position, cited: true },
-      { name: "Perplexity", position: 3 as Position, cited: true },
-      { name: "Gemini", position: 4 as Position, cited: true }
-    ]
-  }
-];
-
 // Add this inside your VisibilityDashboard component
 function BuyingJourneyFunnel() {
   const [activePath, setActivePath] = useState<BreadcrumbItem[]>([]);
@@ -248,22 +210,180 @@ function BuyingJourneyFunnel() {
   const [isTransitioning, setIsTransitioning] = useState(false);
 
   // Define queries first
-  const queries = useMemo(() => 
-    Array.from({ length: 500 }, (_, i) => ({
-      id: `query-${i}`,
-      query: sampleQueries[i % sampleQueries.length].query,
-      category: sampleQueries[i % sampleQueries.length].category,
-      impact: sampleQueries[i % sampleQueries.length].impact,
-      userIntent: sampleQueries[i % sampleQueries.length].userIntent,
-      buyingJourney: sampleQueries[i % sampleQueries.length].buyingJourney,
-      platforms: sampleQueries[i % sampleQueries.length].platforms.map((p: PlatformRanking) => ({
-        name: p.name,
-        position: p.position,
-        cited: p.cited
-      })),
-      averagePosition: Number((Math.random() * 10 + 1).toFixed(1))
-    }))
-  , []); // Empty dependency array since this is static data
+  const queries: QueryPerformance[] = [
+    {
+      id: "q1",
+      query: "What challenges do teams face with manual database schema changes?",
+      category: "Problem Recognition",
+      impact: "High",
+      userIntent: "Research",
+      buyingJourney: "Problem Exploration",
+      platforms: [
+        { name: "Perplexity", position: 2, cited: true },
+        { name: "Claude", position: 4, cited: true },
+        { name: "Gemini", position: '-', cited: false }
+      ],
+      averagePosition: 3
+    },
+    {
+      id: "q2",
+      query: "Best practices for database schema versioning",
+      category: "Problem Recognition",
+      impact: "Medium",
+      userIntent: "Research",
+      buyingJourney: "Solution Education",
+      platforms: [
+        { name: "Perplexity", position: 1, cited: true },
+        { name: "Claude", position: 3, cited: true },
+        { name: "Gemini", position: 5, cited: false }
+      ],
+      averagePosition: 3.2
+    },
+    {
+      id: "q3",
+      query: "Database CI/CD pipeline automation tools",
+      category: "Problem Recognition",
+      impact: "High",
+      userIntent: "Research",
+      buyingJourney: "Solution Comparison",
+      platforms: [
+        { name: "Claude", position: 2, cited: true },
+        { name: "Perplexity", position: 3, cited: true },
+        { name: "Gemini", position: 4, cited: true }
+      ],
+      averagePosition: 3
+    },
+    {
+      id: "q4",
+      query: "How to prevent schema drift in production",
+      category: "Problem Recognition",
+      impact: "High",
+      userIntent: "Research",
+      buyingJourney: "Solution Evaluation",
+      platforms: [
+        { name: "Perplexity", position: 1, cited: true },
+        { name: "Claude", position: 2, cited: true },
+        { name: "Gemini", position: 4, cited: false }
+      ],
+      averagePosition: 2.3
+    },
+    
+    // Database Architect Queries
+    {
+      id: "q5",
+      query: "Database schema automation tools comparison",
+      category: "Research",
+      impact: "High",
+      userIntent: "Evaluation",
+      buyingJourney: "Solution Evaluation",
+      platforms: [
+        { name: "Claude", position: 1, cited: true },
+        { name: "Perplexity", position: 3, cited: true },
+        { name: "Gemini", position: 4, cited: false }
+      ],
+      averagePosition: 2.7
+    },
+    {
+      id: "q6",
+      query: "Schema migration strategies for large databases",
+      category: "Research",
+      impact: "High",
+      userIntent: "Technical",
+      buyingJourney: "Solution Education",
+      platforms: [
+        { name: "Perplexity", position: 2, cited: true },
+        { name: "Claude", position: 3, cited: true },
+        { name: "Gemini", position: 3, cited: true }
+      ],
+      averagePosition: 2.7
+    },
+    {
+      id: "q7",
+      query: "How to implement database version control",
+      category: "Research",
+      impact: "Medium",
+      userIntent: "Technical",
+      buyingJourney: "Solution Comparison",
+      platforms: [
+        { name: "Claude", position: 1, cited: true },
+        { name: "Perplexity", position: 2, cited: true },
+        { name: "Gemini", position: 4, cited: false }
+      ],
+      averagePosition: 2.3
+    },
+    {
+      id: "q8",
+      query: "Database schema testing best practices",
+      category: "Research",
+      impact: "Medium",
+      userIntent: "Technical",
+      buyingJourney: "Solution Evaluation",
+      platforms: [
+        { name: "Perplexity", position: 2, cited: true },
+        { name: "Claude", position: 3, cited: true },
+        { name: "Gemini", position: 5, cited: false }
+      ],
+      averagePosition: 3.3
+    },
+    
+    // Tech Lead Queries
+    {
+      id: "q9",
+      query: "ROI of database schema automation",
+      category: "Vendor Analysis",
+      impact: "High",
+      userIntent: "Business",
+      buyingJourney: "Solution Evaluation",
+      platforms: [
+        { name: "Claude", position: 2, cited: true },
+        { name: "Perplexity", position: 3, cited: true },
+        { name: "Gemini", position: 4, cited: true }
+      ],
+      averagePosition: 3
+    },
+    {
+      id: "q10",
+      query: "Database schema management tools enterprise features",
+      category: "Vendor Analysis",
+      impact: "High",
+      userIntent: "Evaluation",
+      buyingJourney: "Solution Evaluation",
+      platforms: [
+        { name: "Perplexity", position: 1, cited: true },
+        { name: "Claude", position: 2, cited: true },
+        { name: "Gemini", position: 3, cited: true }
+      ],
+      averagePosition: 2
+    },
+    {
+      id: "q11",
+      query: "Schema automation tool integration capabilities",
+      category: "Vendor Analysis",
+      impact: "Medium",
+      userIntent: "Technical",
+      buyingJourney: "Solution Comparison",
+      platforms: [
+        { name: "Claude", position: 2, cited: true },
+        { name: "Perplexity", position: 3, cited: true },
+        { name: "Gemini", position: 4, cited: false }
+      ],
+      averagePosition: 3
+    },
+    {
+      id: "q12",
+      query: "Database schema automation pricing comparison",
+      category: "Vendor Analysis",
+      impact: "High",
+      userIntent: "Business",
+      buyingJourney: "Solution Evaluation",
+      platforms: [
+        { name: "Perplexity", position: 1, cited: true },
+        { name: "Claude", position: 3, cited: true },
+        { name: "Gemini", position: 4, cited: false }
+      ],
+      averagePosition: 2.7
+    }
+  ];
 
   // Sample funnel data structure
   const geographicRegions: FunnelLevel = {
@@ -483,9 +603,18 @@ function BuyingJourneyFunnel() {
   };
 
   // Update the back navigation
-  const handleBack = () => {
-    const newPath = activePath.slice(0, -1);
-    handleNavigation(null, newPath);
+  const handleBack = (index: number) => {
+    const newPath = activePath.slice(0, index + 1);
+    const previousNode = newPath[newPath.length - 1];
+    handleNavigation(
+      previousNode ? {
+        id: previousNode.id,
+        name: previousNode.name,
+        metrics: [],
+        details: {}
+      } : null,
+      newPath
+    );
   };
 
   // Update the renderBreadcrumbs function
@@ -617,7 +746,7 @@ function BuyingJourneyFunnel() {
                   </div>
                 </div>
                 <button
-                  onClick={handleBack}
+                  onClick={() => handleBackClick('region')}
                   className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600"
                 >
                   <ChevronLeftIcon className="w-4 h-4" />
@@ -678,7 +807,7 @@ function BuyingJourneyFunnel() {
                   </div>
                 </div>
                 <button
-                  onClick={handleBack}
+                  onClick={() => handleBackClick('vertical')}
                   className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600"
                 >
                   <ChevronLeftIcon className="w-4 h-4" />
@@ -742,7 +871,7 @@ function BuyingJourneyFunnel() {
                   </div>
                 </div>
                 <button
-                  onClick={handleBack}
+                  onClick={() => handleBackClick('persona')}
                   className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600"
                 >
                   <ChevronLeftIcon className="w-4 h-4" />
@@ -1015,7 +1144,7 @@ function BuyingJourneyFunnel() {
   };
 
   // Add the missing handleBackClick function
-  const handleBackClick = () => {
+  const handleBackClick = (level: string) => {
     const newPath = activePath.slice(0, -1);
     handleNavigation(null, newPath);
   };
@@ -2322,8 +2451,8 @@ export default function VisibilityDashboard() {
 
   const platforms = ['Perplexity', 'Claude', 'Gemini', 'SearchGPT', 'AIO'] as const;
 
-  // Update the queries initialization with proper type assertions
-  const [queries] = useState<QueryPerformance[]>(() => 
+  // Update the queries initialization
+  const [queries, setQueries] = useState<QueryPerformance[]>(() => 
     Array.from({ length: 500 }, (_, i) => ({
       id: `query-${i}`,
       query: sampleQueries[i % sampleQueries.length].query,
@@ -2331,16 +2460,129 @@ export default function VisibilityDashboard() {
       impact: sampleQueries[i % sampleQueries.length].impact as "High" | "Medium" | "Low",
       userIntent: sampleQueries[i % sampleQueries.length].userIntent,
       buyingJourney: sampleQueries[i % sampleQueries.length].buyingJourney as BuyingJourneyStage,
-      platforms: sampleQueries[i % sampleQueries.length].platforms.map((p) => ({
+      platforms: sampleQueries[i % sampleQueries.length].platforms.map(p => ({
         name: p.name,
         position: p.position as Position,
         cited: p.cited
       })),
       averagePosition: Number((Math.random() * 10 + 1).toFixed(1))
-    })) as QueryPerformance[]
+    }))
   );
 
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const parentRef = useRef<HTMLDivElement>(null);
+
+  const rowVirtualizer = useVirtualizer({
+    count: queries.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 60,
+    overscan: 10,
+  });
+
+  const getPositionBadgeColor = (position: Position): string => {
+    if (position === '-') return "red";
+    if (position <= 2) return "green";
+    if (position <= 4) return "yellow";
+    return "orange";
+  };
+
+  const getDetailedRankings = (position: Position): DetailedRanking[] => {
+    if (position === '-') return [];
+    
+    // Fixed company rankings to ensure consistency
+    const rankingMap: { [key: number]: string[] } = {
+      1: ['Ariga.io', 'Redgate', 'Hasura', 'PlanetScale', 'Atlas'],
+      2: ['Redgate', 'Ariga.io', 'PlanetScale', 'Hasura', 'Atlas'],
+      3: ['Hasura', 'PlanetScale', 'Ariga.io', 'Atlas', 'Redgate'],
+      4: ['PlanetScale', 'Atlas', 'Hasura', 'Ariga.io', 'Redgate'],
+      5: ['Atlas', 'Hasura', 'PlanetScale', 'Redgate', 'Ariga.io'],
+      6: ['TypeORM', 'Alembic', 'Atlas', 'Hasura', 'Ariga.io']
+    };
+
+    const numPosition = Number(position);
+    const rankings: DetailedRanking[] = [];
+    
+    // Get 5 positions centered around the current position
+    for (let i = Math.max(1, numPosition - 2); i <= Math.min(6, numPosition + 2); i++) {
+      const companies = rankingMap[i] || rankingMap[1]; // Fallback to first ranking if position not found
+      rankings.push({
+        position: i,
+        company: companies[0] // Always use the first company in the list for that position
+      });
+    }
+
+    return rankings;
+  };
+
+  const getCompetitorsForICP = (profile: string): { name: string; trend: 'up' | 'down' | 'same' }[] => {
+    const competitorsByProfile: { [key: string]: { name: string; trend: 'up' | 'down' | 'same' }[] } = {
+      'Enterprise DevOps Teams': [
+        { name: 'Redgate', trend: 'same' },
+        { name: 'Ariga.io', trend: 'up' },
+        { name: 'PlanetScale', trend: 'down' },
+        { name: 'Hasura', trend: 'up' },
+        { name: 'Atlas', trend: 'down' }
+      ],
+      'Cloud-Native Startups': [
+        { name: 'Ariga.io', trend: 'up' },
+        { name: 'PlanetScale', trend: 'same' },
+        { name: 'Hasura', trend: 'down' },
+        { name: 'Atlas', trend: 'up' },
+        { name: 'Redgate', trend: 'down' }
+      ],
+      'Financial Services': [
+        { name: 'Redgate', trend: 'same' },
+        { name: 'Atlas', trend: 'up' },
+        { name: 'PlanetScale', trend: 'down' },
+        { name: 'Ariga.io', trend: 'up' },
+        { name: 'Hasura', trend: 'down' }
+      ],
+      'SaaS Providers': [
+        { name: 'PlanetScale', trend: 'up' },
+        { name: 'Hasura', trend: 'up' },
+        { name: 'Ariga.io', trend: 'up' },
+        { name: 'Atlas', trend: 'same' },
+        { name: 'Redgate', trend: 'down' }
+      ],
+      'Mid-Market Companies': [
+        { name: 'PlanetScale', trend: 'up' },
+        { name: 'Ariga.io', trend: 'up' },
+        { name: 'Redgate', trend: 'down' },
+        { name: 'Atlas', trend: 'same' },
+        { name: 'Hasura', trend: 'down' }
+      ],
+      'E-commerce Platforms': [
+        { name: 'Hasura', trend: 'up' },
+        { name: 'Ariga.io', trend: 'up' },
+        { name: 'PlanetScale', trend: 'down' },
+        { name: 'Atlas', trend: 'same' },
+        { name: 'Redgate', trend: 'down' }
+      ],
+      'Healthcare Tech': [
+        { name: 'Redgate', trend: 'same' },
+        { name: 'Atlas', trend: 'up' },
+        { name: 'Ariga.io', trend: 'up' },
+        { name: 'PlanetScale', trend: 'down' },
+        { name: 'Hasura', trend: 'down' }
+      ],
+      'Government & Public Sector': [
+        { name: 'Atlas', trend: 'up' },
+        { name: 'Redgate', trend: 'same' },
+        { name: 'Ariga.io', trend: 'up' },
+        { name: 'Hasura', trend: 'down' },
+        { name: 'PlanetScale', trend: 'down' }
+      ],
+      'Educational Institutions': [
+        { name: 'PlanetScale', trend: 'up' },
+        { name: 'Ariga.io', trend: 'up' },
+        { name: 'Atlas', trend: 'down' },
+        { name: 'Hasura', trend: 'same' },
+        { name: 'Redgate', trend: 'down' }
+      ]
+    };
+
+    return competitorsByProfile[profile] || [];
+  };
 
   const topCitations: Citation[] = [
     {
@@ -2800,7 +3042,7 @@ export default function VisibilityDashboard() {
         year: 'numeric'
       });
       
-      const dataPoint: Record<string, string | number> = {
+      const dataPoint: any = {
         date: formattedDate,
       };
 
