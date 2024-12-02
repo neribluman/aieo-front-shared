@@ -3029,12 +3029,16 @@ export default function VisibilityDashboard() {
     },
   };
 
-  // First, let's fix the transformDataForChart function to handle dates better
+  // First, define an interface for the data point
+  interface ChartDataPoint {
+    date: string;
+    [key: string]: string | number; // Allow dynamic engine names as keys with string or number values
+  }
+
+  // Then update the transformDataForChart function
   const transformDataForChart = (metric: typeof selectedMetric) => {
-    // Convert Set to Array to avoid iteration issues
     const uniqueDates = Array.from(new Set(aiEngineTimeSeries.map(item => item.date)));
     
-    // Create formatted data array
     const formattedData = uniqueDates.map(date => {
       const entries = aiEngineTimeSeries.filter(item => item.date === date);
       const formattedDate = new Date(date).toLocaleDateString('en-US', {
@@ -3042,7 +3046,7 @@ export default function VisibilityDashboard() {
         year: 'numeric'
       });
       
-      const dataPoint: any = {
+      const dataPoint: ChartDataPoint = {
         date: formattedDate,
       };
 
@@ -3053,9 +3057,7 @@ export default function VisibilityDashboard() {
       return dataPoint;
     });
 
-    return formattedData.sort((a, b) => 
-      new Date(a.date).getTime() - new Date(b.date).getTime()
-    );
+    return formattedData;
   };
 
   return (
