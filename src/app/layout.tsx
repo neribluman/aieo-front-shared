@@ -34,7 +34,7 @@ export default function RootLayout({
               <div className="flex">
                 <div className="flex-shrink-0 flex items-center">
                   <Link 
-                    href="/landing-page" 
+                    href="/" 
                     className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 
                              text-transparent bg-clip-text transition-all duration-300 
                              hover:from-blue-500 hover:to-purple-500"
@@ -44,7 +44,7 @@ export default function RootLayout({
                 </div>
                 <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
                   <Link
-                    href="/landing-page"
+                    href="/"
                     className="inline-flex items-center px-1 pt-1 text-gray-600 
                              hover:text-blue-600 transition-colors duration-300
                              border-b-2 border-transparent hover:border-blue-600"
@@ -52,7 +52,7 @@ export default function RootLayout({
                     Home
                   </Link>
                   <Link
-                    href="/"
+                    href="/dashboard"
                     className="inline-flex items-center px-1 pt-1 text-gray-600 
                              hover:text-blue-600 transition-colors duration-300
                              border-b-2 border-transparent hover:border-blue-600"
