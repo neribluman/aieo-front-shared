@@ -84,7 +84,7 @@ const enhancedFunnelData: EnhancedFunnelStage[] = [
           type: "Problem Recognition",
           count: 185,
           examples: [
-            "database schema management problems",
+            "databases schema management problems",
             "how to handle schema migrations",
             "database version control issues",
             "team database changes coordination"
