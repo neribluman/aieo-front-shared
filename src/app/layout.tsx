@@ -18,6 +18,33 @@ const geistMono = localFont({
 export const metadata: Metadata = {
   title: "AI Visibility Dashboard | xfunnel.ai",
   description: "Track and analyze your company's visibility across AI platforms",
+  icons: {
+    icon: [
+      {
+        url: "/Favicon(40x40).png",
+        sizes: "40x40",
+        type: "image/png",
+      },
+      {
+        url: "/Favicon(192x192).png",
+        sizes: "192x192",
+        type: "image/png",
+      },
+      {
+        url: "/Favicon(512x512).png",
+        sizes: "512x512",
+        type: "image/png",
+      },
+    ],
+    apple: [
+      {
+        url: "/Favicon(192x192).png",
+        sizes: "192x192",
+        type: "image/png",
+      },
+    ],
+  },
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
@@ -32,7 +59,15 @@ export default function RootLayout({
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between h-16">
               <div className="flex">
-                <div className="flex-shrink-0 flex items-center">
+                <div className="flex-shrink-0 flex items-center gap-2">
+                  <img 
+                    src="/Favicon(192x192).png" 
+                    alt="xfunnel logo" 
+                    width={32}
+                    height={32}
+                    className="w-8 h-8 object-contain"
+                    style={{ imageRendering: 'crisp-edges' }}
+                  />
                   <Link 
                     href="/" 
                     className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 
@@ -50,22 +85,6 @@ export default function RootLayout({
                              border-b-2 border-transparent hover:border-blue-600"
                   >
                     Home
-                  </Link>
-                  <Link
-                    href="/dashboard"
-                    className="inline-flex items-center px-1 pt-1 text-gray-600 
-                             hover:text-blue-600 transition-colors duration-300
-                             border-b-2 border-transparent hover:border-blue-600"
-                  >
-                    Dashboard
-                  </Link>
-                  <Link
-                    href="/buying-journey"
-                    className="inline-flex items-center px-1 pt-1 text-gray-600 
-                             hover:text-blue-600 transition-colors duration-300
-                             border-b-2 border-transparent hover:border-blue-600"
-                  >
-                    Buying Journey
                   </Link>
                 </div>
               </div>
